@@ -19,8 +19,22 @@ type Problem struct {
 	SecondNum int
 }
 
-const GameloopTime = 10
+var GameloopTime int = 120
+
 const ClearSignal = "clear"
+
+func handleClargs() {
+	clargs := os.Args
+	for i := 1; i < len(os.Args)-1; i++ {
+		if clargs[i] == "-t" {
+			num, err := strconv.Atoi(clargs[i+1])
+			if err != nil {
+				fmt.Printf("Enter an integer number of seconds\r\n")
+			}
+			GameloopTime = num
+		}
+	}
+}
 
 func readInput(buf []byte, channel chan string) {
 	var answerBuf = make([]byte, 10)
@@ -82,7 +96,8 @@ func genProblem(firstNumMinValue int, firstNumMaxValue int, legalOps []string, s
 }
 
 func main() {
-	timer := time.NewTimer(GameloopTime * time.Second)
+	handleClargs()
+	timer := time.NewTimer(time.Duration(GameloopTime) * time.Second)
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
