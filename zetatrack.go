@@ -120,6 +120,10 @@ func main() {
 	}
 
 	score := 0
+	printScore := func() {
+		fmt.Printf("\r\nScore: %d\r\n", score)
+	}
+
 	go func() {
 		<-timer.C
 		fmt.Printf("\r\nScore: %d\r\n", score)
@@ -130,6 +134,8 @@ func main() {
 	go readInput(buf, inputChannel)
 
 	firstProblem := true
+	defer printScore()
+Outer:
 	for {
 		problem := genProblem(1, 12, []string{"+", "-", "*", "/"}, 1, 99)
 		problemString := fmt.Sprintf("%d %s %d", problem.FirstNum, problem.Operation, problem.SecondNum)
@@ -156,6 +162,9 @@ func main() {
 				score++
 				inputChannel <- ClearSignal
 				break
+			}
+			if userAns == "exit" {
+				break Outer
 			}
 		}
 	}
