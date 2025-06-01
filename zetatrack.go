@@ -92,6 +92,11 @@ func genProblem(firstNumMinValue int, firstNumMaxValue int, legalOps []string, s
 		}
 		problem.FirstNum -= problem.FirstNum % problem.SecondNum
 	}
+	if problem.Operation == "-" {
+		if problem.FirstNum < problem.SecondNum {
+			problem.FirstNum, problem.SecondNum = problem.SecondNum, problem.FirstNum
+		}
+	}
 	return problem
 }
 
