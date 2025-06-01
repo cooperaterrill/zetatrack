@@ -67,10 +67,17 @@ func randRange(min int, max int) int {
 
 func genProblem(firstNumMinValue int, firstNumMaxValue int, legalOps []string, secondNumMinValue int, secondNumMaxValue int) Problem {
 	var problem Problem
-	problem.FirstNum = randRange(firstNumMinValue, firstNumMaxValue)
-	problem.SecondNum = randRange(secondNumMinValue, secondNumMaxValue)
 	problem.Operation = legalOps[randRange(0, len(legalOps)-1)]
 
+	problem.FirstNum = randRange(firstNumMinValue, firstNumMaxValue)
+	problem.SecondNum = randRange(secondNumMinValue, secondNumMaxValue)
+
+	if problem.Operation == "/" {
+		if problem.FirstNum < problem.SecondNum {
+			problem.FirstNum, problem.SecondNum = problem.SecondNum, problem.FirstNum
+		}
+		problem.FirstNum -= problem.FirstNum % problem.SecondNum
+	}
 	return problem
 }
 
@@ -104,7 +111,7 @@ func main() {
 
 	firstProblem := true
 	for {
-		problem := genProblem(1, 12, []string{"*", "+"}, 1, 99)
+		problem := genProblem(1, 12, []string{"+", "-", "*", "/"}, 1, 99)
 		problemString := fmt.Sprintf("%d %s %d", problem.FirstNum, problem.Operation, problem.SecondNum)
 		if firstProblem {
 			fmt.Printf("%s: ", problemString)
