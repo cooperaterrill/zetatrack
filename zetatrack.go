@@ -54,6 +54,9 @@ func readInput(buf []byte, channel chan string) {
 		n, err := os.Stdin.Read(buf)
 		if err == nil && n > 0 {
 			//fmt.Printf("Read: %q", buf[0])
+			if buf[0] == '\r' || buf[0] == '\n' {
+				continue
+			}
 			if buf[0] == 0x7f {
 				if answerBufFront <= 0 {
 					continue
