@@ -54,7 +54,7 @@ func readInput(buf []byte, channel chan string) {
 		n, err := os.Stdin.Read(buf)
 		if err == nil && n > 0 {
 			//fmt.Printf("Read: %q", buf[0])
-			if buf[0] == '\r' || buf[0] == '\n' {
+			if (buf[0] < 48 || buf[0] > 57) && buf[0] != 0x7f && buf[0] != 'q' {
 				continue
 			}
 			if buf[0] == 0x7f {
@@ -63,6 +63,8 @@ func readInput(buf []byte, channel chan string) {
 				}
 				answerBufFront--
 				fmt.Printf("\b \b")
+			} else if buf[0] == 'q' {
+				channel <- "quit"
 			} else {
 				if answerBufFront >= len(answerBuf) {
 					continue
@@ -149,7 +151,7 @@ func gameLoop(inputChannel chan string) {
 				inputChannel <- ClearSignal
 				break
 			}
-			if userAns == "exit" {
+			if userAns == "quit" {
 				return
 			}
 		}
