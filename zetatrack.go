@@ -100,9 +100,61 @@ func genProblem(firstNumMinValue int, firstNumMaxValue int, legalOps []string, s
 	return problem
 }
 
+func getProblemAnswer(problemString string) int {
+	expression, err := govaluate.NewEvaluableExpression(problemString)
+	if err != nil {
+		fmt.Print("Error parsing expression\r\n")
+		panic(err)
+	}
+	evaluated, err := expression.Evaluate(nil)
+	if err != nil {
+		fmt.Print("Error evaluating expression\r\n")
+	}
+	return int(evaluated.(float64))
+}
+
+func gameLoop(inputChannel chan string) {
+	score := 0
+	timer := time.NewTimer(time.Duration(GameloopTime) * time.Second)
+	firstProblem := true
+	printScore := func() {
+		fmt.Printf("\r\nScore: %d\r\n", score)
+	}
+	go func() {
+		<-timer.C
+		printScore()
+		os.Exit(0)
+	}()
+	defer printScore()
+
+	for {
+		problem := genProblem(1, 12, []string{"+", "-", "*", "/"}, 1, 99)
+		problemString := fmt.Sprintf("%d %s %d", problem.FirstNum, problem.Operation, problem.SecondNum)
+		problemAns := getProblemAnswer(problemString)
+		if firstProblem {
+			fmt.Printf("%s: ", problemString)
+			firstProblem = false
+		} else {
+			fmt.Printf("\r\n%s: ", problemString)
+		}
+
+		for {
+			userAns := <-inputChannel
+			if userAns == strconv.Itoa(problemAns) {
+				//fmt.Printf("\r\nYou got the right answer\r\n")
+				score++
+				inputChannel <- ClearSignal
+				break
+			}
+			if userAns == "exit" {
+				return
+			}
+		}
+	}
+}
+
 func main() {
 	handleClargs()
-	timer := time.NewTimer(time.Duration(GameloopTime) * time.Second)
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
@@ -119,53 +171,8 @@ func main() {
 		panic(err)
 	}
 
-	score := 0
-	printScore := func() {
-		fmt.Printf("\r\nScore: %d\r\n", score)
-	}
-
-	go func() {
-		<-timer.C
-		fmt.Printf("\r\nScore: %d\r\n", score)
-		os.Exit(0)
-	}()
-
 	inputChannel := make(chan string)
 	go readInput(buf, inputChannel)
 
-	firstProblem := true
-	defer printScore()
-Outer:
-	for {
-		problem := genProblem(1, 12, []string{"+", "-", "*", "/"}, 1, 99)
-		problemString := fmt.Sprintf("%d %s %d", problem.FirstNum, problem.Operation, problem.SecondNum)
-		if firstProblem {
-			fmt.Printf("%s: ", problemString)
-			firstProblem = false
-		} else {
-			fmt.Printf("\r\n%s: ", problemString)
-		}
-		expression, err := govaluate.NewEvaluableExpression(problemString)
-		if err != nil {
-			fmt.Print("Error parsing expression\r\n")
-			panic(err)
-		}
-		evaluated, err := expression.Evaluate(nil)
-		if err != nil {
-			fmt.Print("Error evaluating expression\r\n")
-		}
-		questionAns := int(evaluated.(float64))
-		for {
-			userAns := <-inputChannel
-			if userAns == strconv.Itoa(questionAns) {
-				//fmt.Printf("\r\nYou got the right answer\r\n")
-				score++
-				inputChannel <- ClearSignal
-				break
-			}
-			if userAns == "exit" {
-				break Outer
-			}
-		}
-	}
+	gameLoop(inputChannel)
 }
