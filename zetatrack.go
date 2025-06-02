@@ -24,6 +24,19 @@ func (problem Problem) String() string {
 	return fmt.Sprintf("%d %s %d", problem.FirstNum, problem.Operation, problem.SecondNum)
 }
 
+func ParseProblem(problemString string) Problem {
+	parts := strings.Split(problemString, " ")
+	firstNum, err := strconv.Atoi(parts[0])
+	if err != nil {
+		panic(err)
+	}
+	secondNum, err := strconv.Atoi(parts[2])
+	if err != nil {
+		panic(err)
+	}
+	return Problem{FirstNum: firstNum, Operation: parts[1], SecondNum: secondNum}
+}
+
 type Log struct {
 	Problems   []Problem
 	Times      []int64
@@ -35,9 +48,34 @@ func NewLog(problems []Problem, times []int64, gameLength int) Log {
 	return Log{Problems: problems, Times: times, LogTime: time.Now(), GameLength: gameLength}
 }
 
-//func ParseLog(line string) Log {
-//	time.Time.
-//}
+func ParseLog(line string) Log {
+	parts := strings.Split(line, " ")
+
+	logTimeUnix, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	logTime := time.Unix(logTimeUnix, 0)
+
+	gameLength, err := strconv.Atoi(parts[1])
+	if err != nil {
+		panic(err)
+	}
+
+	var problems []Problem
+	var times []int64
+	for i := 2; i < len(parts)-3; i++ {
+		problem := ParseProblem(parts[i] + " " + parts[i+1] + " " + parts[i+2])
+		problems = append(problems, problem)
+		time, err := strconv.ParseInt(parts[i+3], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		times = append(times, time)
+	}
+
+	return Log{Problems: problems, Times: times, LogTime: logTime, GameLength: gameLength}
+}
 
 func (log Log) String() string {
 	var sb strings.Builder
