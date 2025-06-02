@@ -28,6 +28,16 @@ var GameloopTime int = 120
 const ClearSignal = "clear"
 const QuitSignal = "quit"
 
+//func fileExists(filepath string) bool {
+//	_, err := os.Stat(filepath)
+//	if err != nil {
+//		if os.IsNotExist(err) {
+//			return false
+//		}
+//	}
+//	return true
+//}
+
 func handleClargs() {
 	clargs := os.Args
 	for i := 1; i < len(os.Args)-1; i++ {
@@ -123,6 +133,22 @@ func getProblemAnswer(problemString string) int {
 	return int(evaluated.(float64))
 }
 
+func saveScores(problems []Problem, times []int64, filepath string) {
+	var file *os.File
+	var err error
+	file, err = os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	file.WriteString(time.Now().String() + " ")
+	for i := 0; i < len(problems)-1; i++ {
+		file.WriteString(problems[i].String() + " " + strconv.FormatInt(times[i], 10) + " ")
+	}
+	file.WriteString(problems[len(problems)-1].String() + " " + "-1" + " ")
+}
+
 func gameLoop(inputChannel chan string) {
 	var problems []Problem
 	var times []int64
@@ -131,20 +157,14 @@ func gameLoop(inputChannel chan string) {
 	firstProblem := true
 	cleanup := func() {
 		fmt.Printf("\r\nScore: %d\r\n", score)
-		file, err := os.Create("scores.txt")
-		if err != nil {
-			panic(err)
-		}
-		for i := 0; i < len(problems)-1; i++ {
-			file.WriteString(problems[i].String() + " " + strconv.FormatInt(times[i], 10) + " ")
-		}
-		file.WriteString(problems[len(problems)-1].String() + " " + "-1" + " ")
+		saveScores(problems, times, "scores.txt")
+
 		return
 	}
 	defer cleanup()
+
 	go func() {
 		<-timer.C
-		fmt.Printf("\r\n timer pop")
 		cleanup()
 		os.Exit(0)
 	}()
