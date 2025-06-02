@@ -91,6 +91,7 @@ func (log Log) String() string {
 }
 
 var GameloopTime int = 120
+var currentProblem Problem
 
 const ClearSignal = "clear"
 const QuitSignal = "quit"
@@ -135,16 +136,17 @@ func readInput(buf []byte, channel chan string) {
 		}
 		n, err := os.Stdin.Read(buf)
 		if err == nil && n > 0 {
-			//fmt.Printf("Read: %q", buf[0])
+			//fmt.Printf("Read: %v\r\n", buf[:n])
 			if (buf[0] < 48 || buf[0] > 57) && buf[0] != 0x7f && buf[0] != 'q' {
 				continue
 			}
-			if buf[0] == 0x7f {
+			if buf[0] == 127 || buf[0] == 8 {
 				if answerBufFront <= 0 {
 					continue
 				}
 				answerBufFront--
-				fmt.Printf("\b \b")
+
+				//fmt.Printf("\b \b")
 			} else if buf[0] == 'q' {
 				channel <- QuitSignal
 			} else {
@@ -154,7 +156,10 @@ func readInput(buf []byte, channel chan string) {
 				answerBuf[answerBufFront] = buf[0]
 				answerBufFront++
 			}
-			fmt.Printf("%c", buf[0])
+			fmt.Printf("\r\033[K")
+			fmt.Printf("%s: %s", currentProblem, string(answerBuf[0:answerBufFront]))
+
+			//fmt.Printf("%c", buf[0])
 			//fmt.Printf("Current answer: %s\n", answerBuf[0:answerBufFront])
 			channel <- string(answerBuf[0:answerBufFront])
 		}
@@ -235,6 +240,7 @@ func gameLoop(inputChannel chan string, oldState *term.State) {
 
 	for {
 		problem := genProblem(1, 12, []string{"+", "-", "*", "/"}, 1, 99)
+		currentProblem = problem
 		problemAns := getProblemAnswer(problem.String())
 		problems = append(problems, problem)
 		if firstProblem {
