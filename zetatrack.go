@@ -35,10 +35,14 @@ func NewLog(problems []Problem, times []int64, gameLength int) Log {
 	return Log{Problems: problems, Times: times, LogTime: time.Now(), GameLength: gameLength}
 }
 
+//func ParseLog(line string) Log {
+//	time.Time.
+//}
+
 func (log Log) String() string {
 	var sb strings.Builder
 
-	sb.WriteString(time.Now().String() + " ")
+	sb.WriteString(strconv.FormatInt(time.Now().Unix(), 10) + " ")
 	sb.WriteString(strconv.Itoa(log.GameLength) + " ")
 	for i := 0; i < len(log.Problems)-1; i++ {
 		sb.WriteString(log.Problems[i].String() + " " + strconv.FormatInt(log.Times[i], 10) + " ")
