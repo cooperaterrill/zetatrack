@@ -149,6 +149,7 @@ func readInput(buf []byte, channel chan string) {
 				//fmt.Printf("\b \b")
 			} else if buf[0] == 'q' {
 				channel <- QuitSignal
+				return
 			} else {
 				if answerBufFront >= len(answerBuf) {
 					continue
