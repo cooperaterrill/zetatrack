@@ -39,6 +39,7 @@ func (log Log) String() string {
 	var sb strings.Builder
 
 	sb.WriteString(time.Now().String() + " ")
+	sb.WriteString(strconv.Itoa(log.GameLength) + " ")
 	for i := 0; i < len(log.Problems)-1; i++ {
 		sb.WriteString(log.Problems[i].String() + " " + strconv.FormatInt(log.Times[i], 10) + " ")
 	}
