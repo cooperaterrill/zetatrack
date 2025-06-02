@@ -22,6 +22,7 @@ type Problem struct {
 var GameloopTime int = 120
 
 const ClearSignal = "clear"
+const QuitSignal = "quit"
 
 func handleClargs() {
 	clargs := os.Args
@@ -64,7 +65,7 @@ func readInput(buf []byte, channel chan string) {
 				answerBufFront--
 				fmt.Printf("\b \b")
 			} else if buf[0] == 'q' {
-				channel <- "quit"
+				channel <- QuitSignal
 			} else {
 				if answerBufFront >= len(answerBuf) {
 					continue
@@ -150,7 +151,7 @@ func gameLoop(inputChannel chan string) {
 				inputChannel <- ClearSignal
 				break
 			}
-			if userAns == "quit" {
+			if userAns == QuitSignal {
 				return
 			}
 		}
