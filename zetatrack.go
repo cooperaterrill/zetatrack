@@ -127,8 +127,7 @@ func gameLoop(inputChannel chan string) {
 	}
 	go func() {
 		<-timer.C
-		printScore()
-		os.Exit(0)
+		return
 	}()
 	defer printScore()
 
