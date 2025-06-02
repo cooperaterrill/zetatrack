@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,6 +22,29 @@ type Problem struct {
 
 func (problem Problem) String() string {
 	return fmt.Sprintf("%d %s %d", problem.FirstNum, problem.Operation, problem.SecondNum)
+}
+
+type Log struct {
+	Problems   []Problem
+	Times      []int64
+	LogTime    time.Time
+	GameLength int
+}
+
+func NewLog(problems []Problem, times []int64, gameLength int) Log {
+	return Log{Problems: problems, Times: times, LogTime: time.Now(), GameLength: gameLength}
+}
+
+func (log Log) String() string {
+	var sb strings.Builder
+
+	sb.WriteString(time.Now().String() + " ")
+	for i := 0; i < len(log.Problems)-1; i++ {
+		sb.WriteString(log.Problems[i].String() + " " + strconv.FormatInt(log.Times[i], 10) + " ")
+	}
+	sb.WriteString(log.Problems[len(log.Problems)-1].String() + " " + "-1" + "\r\n")
+
+	return sb.String()
 }
 
 var GameloopTime int = 120
@@ -142,11 +166,7 @@ func saveScores(problems []Problem, times []int64, filepath string) {
 	}
 	defer file.Close()
 
-	file.WriteString(time.Now().String() + " ")
-	for i := 0; i < len(problems)-1; i++ {
-		file.WriteString(problems[i].String() + " " + strconv.FormatInt(times[i], 10) + " ")
-	}
-	file.WriteString(problems[len(problems)-1].String() + " " + "-1" + " ")
+	file.WriteString(NewLog(problems, times, GameloopTime).String())
 }
 
 func gameLoop(inputChannel chan string) {
