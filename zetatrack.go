@@ -212,7 +212,7 @@ func saveScores(problems []Problem, times []int64, filepath string) {
 	file.WriteString(NewLog(problems, times, GameloopTime).String())
 }
 
-func gameLoop(inputChannel chan string) {
+func gameLoop(inputChannel chan string, oldState *term.State) {
 	var problems []Problem
 	var times []int64
 	score := 0
@@ -222,6 +222,7 @@ func gameLoop(inputChannel chan string) {
 		fmt.Printf("\r\nScore: %d\r\n", score)
 		saveScores(problems, times, "scores.txt")
 
+		term.Restore(int(os.Stdin.Fd()), oldState)
 		return
 	}
 	defer cleanup()
@@ -268,8 +269,6 @@ func main() {
 		panic(err)
 	}
 
-	defer term.Restore(int(os.Stdin.Fd()), oldState)
-
 	fd := int(os.Stdin.Fd())
 	var buf = make([]byte, 1)
 
@@ -281,5 +280,5 @@ func main() {
 	inputChannel := make(chan string)
 	go readInput(buf, inputChannel)
 
-	gameLoop(inputChannel)
+	gameLoop(inputChannel, oldState)
 }
