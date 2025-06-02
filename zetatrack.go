@@ -19,6 +19,10 @@ type Problem struct {
 	SecondNum int
 }
 
+func (problem Problem) String() string {
+	return fmt.Sprintf("%d %s %d", problem.FirstNum, problem.Operation, problem.SecondNum)
+}
+
 var GameloopTime int = 120
 
 const ClearSignal = "clear"
@@ -120,32 +124,47 @@ func getProblemAnswer(problemString string) int {
 }
 
 func gameLoop(inputChannel chan string) {
+	var problems []Problem
+	var times []int64
 	score := 0
 	timer := time.NewTimer(time.Duration(GameloopTime) * time.Second)
 	firstProblem := true
-	printScore := func() {
+	cleanup := func() {
 		fmt.Printf("\r\nScore: %d\r\n", score)
+		file, err := os.Create("scores.txt")
+		if err != nil {
+			panic(err)
+		}
+		for i := 0; i < len(problems)-1; i++ {
+			file.WriteString(problems[i].String() + " " + strconv.FormatInt(times[i], 10) + " ")
+		}
+		file.WriteString(problems[len(problems)-1].String() + " " + "-1" + " ")
+		return
 	}
+	defer cleanup()
 	go func() {
 		<-timer.C
-		return
+		fmt.Printf("\r\n timer pop")
+		cleanup()
+		os.Exit(0)
 	}()
-	defer printScore()
 
 	for {
 		problem := genProblem(1, 12, []string{"+", "-", "*", "/"}, 1, 99)
-		problemString := fmt.Sprintf("%d %s %d", problem.FirstNum, problem.Operation, problem.SecondNum)
-		problemAns := getProblemAnswer(problemString)
+		problemAns := getProblemAnswer(problem.String())
+		problems = append(problems, problem)
 		if firstProblem {
-			fmt.Printf("%s: ", problemString)
+			fmt.Printf("%s: ", problem)
 			firstProblem = false
 		} else {
-			fmt.Printf("\r\n%s: ", problemString)
+			fmt.Printf("\r\n%s: ", problem)
 		}
+		startTime := time.Now()
 
 		for {
 			userAns := <-inputChannel
 			if userAns == strconv.Itoa(problemAns) {
+				times = append(times, time.Now().Sub(startTime).Milliseconds())
 				//fmt.Printf("\r\nYou got the right answer\r\n")
 				score++
 				inputChannel <- ClearSignal
