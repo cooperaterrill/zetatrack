@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"math"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -64,7 +67,7 @@ func ParseLog(line string) Log {
 
 	var problems []Problem
 	var times []int64
-	for i := 2; i < len(parts)-3; i++ {
+	for i := 2; i < len(parts)-3; i += 4 {
 		problem := ParseProblem(parts[i] + " " + parts[i+1] + " " + parts[i+2])
 		problems = append(problems, problem)
 		time, err := strconv.ParseInt(parts[i+3], 10, 64)
@@ -91,23 +94,17 @@ func (log Log) String() string {
 }
 
 var GameloopTime int = 120
+var AnalyzeStats bool = false
 var currentProblem Problem
 
 const ClearSignal = "clear"
 const QuitSignal = "quit"
 
-//func fileExists(filepath string) bool {
-//	_, err := os.Stat(filepath)
-//	if err != nil {
-//		if os.IsNotExist(err) {
-//			return false
-//		}
-//	}
-//	return true
-//}
-
 func handleClargs() {
 	clargs := os.Args
+	if clargs[1] == "-s" {
+		AnalyzeStats = true
+	}
 	for i := 1; i < len(os.Args)-1; i++ {
 		if clargs[i] == "-t" {
 			num, err := strconv.Atoi(clargs[i+1])
@@ -268,8 +265,109 @@ func gameLoop(inputChannel chan string, oldState *term.State) {
 	}
 }
 
+func median(times []int64) int64 {
+	sort.Slice(times, func(i int, j int) bool {
+		return times[i] < times[j]
+	})
+	var med int64
+	if len(times)%2 == 0 {
+		med = (times[len(times)/2-1] + times[len(times)/2]) / 2
+	} else {
+		med = times[len(times)/2]
+	}
+	return med
+}
+
+func iqr(times []int64) int64 {
+	sort.Slice(times, func(i int, j int) bool {
+		return times[i] < times[j]
+	})
+	n := len(times) / 2
+	var lowerTimes []int64
+	var upperTimes []int64
+	for i := 0; i < n; i++ {
+		lowerTimes = append(lowerTimes, times[i])
+		upperTimes = append(upperTimes, times[len(times)-i-1])
+	}
+
+	return median(upperTimes) - median(lowerTimes)
+}
+
+func medianAndIqr(logs []Log) (int64, int64) {
+	var times []int64
+	for _, log := range logs {
+		for _, time := range log.Times {
+			if time == -1 {
+				continue
+			}
+			times = append(times, time)
+		}
+	}
+
+	return median(times), iqr(times)
+}
+
+func mean(times []int64) int64 {
+	var mean int64
+	for _, time := range times {
+		mean += time
+	}
+	return mean / int64(len(times))
+}
+
+func stdev(times []int64) int64 {
+	mean := mean(times)
+	var res int64
+	for _, time := range times {
+		res += (mean - time) * (mean - time)
+	}
+	res /= int64(len(times) - 1)
+
+	return int64(math.Sqrt(float64(res)))
+}
+
+func meanAndStdev(logs []Log) (int64, int64) {
+	var times []int64
+	for _, log := range logs {
+		for _, time := range log.Times {
+			if time == -1 {
+				continue
+			}
+			times = append(times, time)
+		}
+	}
+
+	return mean(times), stdev(times)
+}
+
+func printStats(filepath string) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	var logs []Log
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(strings.Trim(line, "\r\n\t ")) == 0 {
+			continue
+		}
+		logs = append(logs, ParseLog(line))
+	}
+	median, iqr := medianAndIqr(logs)
+	mean, stdev := meanAndStdev(logs)
+	fmt.Printf("Median: %d \r\nIQR: %d\r\n", median, iqr)
+	fmt.Printf("Mean: %d \r\nSTDev: %d\r\n", mean, stdev)
+}
+
 func main() {
 	handleClargs()
+	if AnalyzeStats {
+		printStats("scores.txt")
+		return
+	}
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
