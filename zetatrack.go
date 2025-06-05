@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -138,6 +139,29 @@ type Config struct {
 	OverrideDivisionConfig    bool
 	Duration                  int
 	LegalOperations           []string
+}
+
+func (config Config) Load(filepath string) {
+	file, err := os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	buffer := make([]byte, 10*1024)
+	file.Read(buffer)
+	json.Unmarshal(buffer, &config)
+	//return config
+}
+
+func (config Config) Save(filepath string) {
+	file, err := os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		panic(err)
+	}
+	res, err := json.Marshal(config)
+	if err != nil {
+		panic(err)
+	}
+	file.Write(res)
 }
 
 var mode Mode
