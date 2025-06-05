@@ -131,6 +131,7 @@ type DivisionConfig struct {
 }
 
 type Config struct {
+	Name                      string
 	AdditionConfig            AdditionConfig
 	SubtractionConfig         SubtractionConfig
 	MultiplicationConfig      MultiplicationConfig
@@ -162,6 +163,14 @@ func (config Config) Save(filepath string) {
 		panic(err)
 	}
 	file.Write(res)
+}
+
+func GetZetamacConfig() Config {
+	add := AdditionConfig{2, 100, 2, 100}
+	sub := SubtractionConfig{100, 2, 100, 2, true}
+	mult := MultiplicationConfig{2, 12, 2, 100}
+	div := DivisionConfig{2, 1200, 2, 100, true}
+	return Config{"default", add, sub, mult, div, true, true, 120, []string{"+", "-", "/", "*"}}
 }
 
 var mode Mode
@@ -414,22 +423,92 @@ func printStats(filepath string) {
 	fmt.Printf("Mean: %d \r\nSTDev: %d\r\n", mean, stdev)
 }
 
-func main() {
-	add := AdditionConfig{2, 100, 2, 100}
-	sub := SubtractionConfig{100, 2, 100, 2, true}
-	mult := MultiplicationConfig{2, 12, 2, 100}
-	div := DivisionConfig{1200, 2, 100, 2, true}
-	config := Config{add, sub, mult, div, true, true, 120, []string{"+", "-", "/", "*"}}
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || !os.IsNotExist(err)
+}
 
+func getCleanInput(reader *bufio.Reader) string {
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	return strings.Trim(line, "\r\n\t ")
+}
+
+func setupConfig() {
+	var config Config
+	err := os.MkdirAll("configs", 0755)
+	if err != nil {
+		panic(err)
+	}
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf("Give this config a name, or leave empty to override the default: ")
+	configName := getCleanInput(reader)
+	if len(configName) == 0 {
+		fmt.Printf("\r\nModifying default config.")
+		configName = "default"
+		config.Load("configs/default.txt")
+	} else if fileExists("configs/" + configName + ".txt") {
+		fmt.Printf("\r\nModifying existing config.")
+		config.Load("configs/" + configName + ".txt")
+	} else {
+		fmt.Printf("\r\nInitializing new config.")
+		config = GetZetamacConfig()
+		config.Name = configName
+	}
+
+	//MEGA TODO: handle all these options!!!
+	//
+	// DOUBLE TODO: bracket around previously selected option!!
+	//
+	//
+	//
+	fmt.Printf("\r\nModify game meta-settings? y/[n]: ")
+	input := getCleanInput(reader)
+	if input == "y" {
+		fmt.Printf("\r\nEnter a new name for this config, or leave blank for unchanged (%s): ", config.Name)
+		fmt.Printf("\r\nShould subtraction problems be addition problems in reverse? [y]/n: ")
+		fmt.Printf("\r\nShould division problems always divide evenly? [y]/n: ")
+		fmt.Printf("\r\nEnter the desired game duration in seconds, or leave blank for unchanged (%d): ", config.Duration)
+		fmt.Printf("\r\nEnable addition? [y]/n: ")
+		fmt.Printf("\r\nEnable subtraction? [y]/n: ")
+		fmt.Printf("\r\nEnable multiplication? [y]/n: ")
+		fmt.Printf("\r\nEnable division? [y]/n: ")
+	}
+	fmt.Printf("\r\nModify addition settings? y/[n]: ")
+	if getCleanInput(reader) == "y" {
+
+	}
+	fmt.Printf("\r\nModify subtraction settings? y/[n]: ")
+	if getCleanInput(reader) == "y" {
+
+	}
+	fmt.Printf("\r\nModify multiplication settings? y/[n]: ")
+	if getCleanInput(reader) == "y" {
+
+	}
+	fmt.Printf("\r\nModify division settings? y/[n]: ")
+	if getCleanInput(reader) == "y" {
+
+	}
+
+	config.Save("configs/" + config.Name + ".txt")
+}
+
+func main() {
+	config := GetZetamacConfig()
 	handleClargs(&config)
 
+	mode = ConfigMode
 	switch mode {
 	case StatsMode:
 		printStats("scores.txt")
 		return
 	case ConfigMode: //TODO: implement config mode
+		setupConfig()
+		return
 	case GameMode:
-		fmt.Printf("Game mode!\r\n")
 		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 		if err != nil {
 			panic(err)
