@@ -99,16 +99,56 @@ func (log Log) String() string {
 	return sb.String()
 }
 
-var GameloopTime int = 120
+type AdditionConfig struct {
+	MinLeft  int
+	MaxLeft  int
+	MinRight int
+	MaxRight int
+}
+
+type SubtractionConfig struct {
+	MinLeft                    int
+	MaxLeft                    int
+	MinRight                   int
+	MaxRight                   int
+	ForceNonnegativeDifference bool
+}
+
+type MultiplicationConfig struct {
+	MinLeft  int
+	MaxLeft  int
+	MinRight int
+	MaxRight int
+}
+
+type DivisionConfig struct {
+	MinLeft            int
+	MaxLeft            int
+	MinRight           int
+	MaxRight           int
+	ForceCleanDivision bool
+}
+
+type Config struct {
+	AdditionConfig            AdditionConfig
+	SubtractionConfig         SubtractionConfig
+	MultiplicationConfig      MultiplicationConfig
+	DivisionConfig            DivisionConfig
+	OverrideSubtractionConfig bool
+	OverrideDivisionConfig    bool
+	Duration                  int
+	LegalOperations           []string
+}
+
 var mode Mode
 var currentProblem Problem
 
 const ClearSignal = "clear"
 const QuitSignal = "quit"
 
-func handleClargs() {
+func handleClargs(config *Config) {
 	clargs := os.Args
-	if clargs[1] == "-s" {
+	if len(clargs) > 1 && clargs[1] == "-s" {
 		mode = StatsMode
 	} else {
 		mode = GameMode
@@ -119,7 +159,7 @@ func handleClargs() {
 			if err != nil {
 				fmt.Printf("Enter an integer number of seconds\r\n")
 			}
-			GameloopTime = num
+			config.Duration = num
 		}
 	}
 }
@@ -177,29 +217,74 @@ func randRange(min int, max int) int {
 	return rand.IntN(max-min+1) + min
 }
 
-func genProblem(firstNumMinValue int, firstNumMaxValue int, legalOps []string, secondNumMinValue int, secondNumMaxValue int) Problem {
+func genAdditionProblem(config AdditionConfig) Problem {
 	var problem Problem
-	problem.Operation = legalOps[randRange(0, len(legalOps)-1)]
-
-	problem.FirstNum = randRange(firstNumMinValue, firstNumMaxValue)
-	problem.SecondNum = randRange(secondNumMinValue, secondNumMaxValue)
-
-	if problem.Operation == "/" {
-		if problem.FirstNum < problem.SecondNum {
-			problem.FirstNum, problem.SecondNum = problem.SecondNum, problem.FirstNum
-		}
-		problem.FirstNum -= problem.FirstNum % problem.SecondNum
-	}
-	if problem.Operation == "-" {
-		if problem.FirstNum < problem.SecondNum {
-			problem.FirstNum, problem.SecondNum = problem.SecondNum, problem.FirstNum
-		}
-	}
+	problem.Operation = "+"
+	problem.FirstNum = randRange(config.MinLeft, config.MaxLeft)
+	problem.SecondNum = randRange(config.MinRight, config.MaxRight)
 	return problem
 }
 
-func getProblemAnswer(problemString string) int {
-	expression, err := govaluate.NewEvaluableExpression(problemString)
+func genMultiplicationProblem(config MultiplicationConfig) Problem {
+	var problem Problem
+	problem.Operation = "*"
+	problem.FirstNum = randRange(config.MinLeft, config.MaxLeft)
+	problem.SecondNum = randRange(config.MinRight, config.MaxRight)
+	return problem
+}
+
+func genSubtractionProblem(config SubtractionConfig) Problem {
+	var problem Problem
+	problem.Operation = "-"
+	for true {
+		problem.FirstNum = randRange(config.MinLeft, config.MaxLeft)
+		problem.SecondNum = randRange(config.MinRight, config.MaxRight)
+		if !config.ForceNonnegativeDifference || problem.FirstNum-problem.SecondNum >= 0 {
+			return problem
+		}
+	}
+	//this will never hit
+	return problem
+}
+
+func genDivisionProblem(config DivisionConfig) Problem {
+	var problem Problem
+	problem.Operation = "/"
+	for true {
+		problem.FirstNum = randRange(config.MinLeft, config.MaxLeft)
+		problem.SecondNum = randRange(config.MinRight, config.MaxRight)
+		if !config.ForceCleanDivision || problem.FirstNum%problem.SecondNum == 0 {
+			return problem
+		}
+	}
+	//this will never hit
+	return problem
+}
+
+func genProblem(config Config) Problem {
+	operation := config.LegalOperations[randRange(0, len(config.LegalOperations)-1)]
+
+	if operation == "-" && config.OverrideSubtractionConfig {
+		addProblem := genAdditionProblem(config.AdditionConfig)
+		ans := getProblemAnswer(addProblem)
+		return Problem{ans, "-", addProblem.FirstNum}
+	} else if operation == "/" && config.OverrideDivisionConfig {
+		multProblem := genMultiplicationProblem(config.MultiplicationConfig)
+		ans := getProblemAnswer(multProblem)
+		return Problem{ans, "/", multProblem.FirstNum}
+	} else if operation == "+" {
+		return genAdditionProblem(config.AdditionConfig)
+	} else if operation == "*" {
+		return genMultiplicationProblem(config.MultiplicationConfig)
+	} else if operation == "-" {
+		return genSubtractionProblem(config.SubtractionConfig)
+	} else {
+		return genDivisionProblem(config.DivisionConfig)
+	}
+}
+
+func getProblemAnswer(problem Problem) int {
+	expression, err := govaluate.NewEvaluableExpression(problem.String())
 	if err != nil {
 		fmt.Print("Error parsing expression\r\n")
 		panic(err)
@@ -211,7 +296,7 @@ func getProblemAnswer(problemString string) int {
 	return int(evaluated.(float64))
 }
 
-func saveScores(problems []Problem, times []int64, filepath string) {
+func saveScores(problems []Problem, times []int64, filepath string, config Config) {
 	var file *os.File
 	var err error
 	file, err = os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
@@ -220,18 +305,19 @@ func saveScores(problems []Problem, times []int64, filepath string) {
 	}
 	defer file.Close()
 
-	file.WriteString(NewLog(problems, times, GameloopTime).String())
+	file.WriteString(NewLog(problems, times, config.Duration).String())
 }
 
-func gameLoop(inputChannel chan string, oldState *term.State) {
+func gameLoop(config Config, inputChannel chan string, oldState *term.State) {
+	fmt.Printf("duration will be %d\r\n", config.Duration)
 	var problems []Problem
 	var times []int64
 	score := 0
-	timer := time.NewTimer(time.Duration(GameloopTime) * time.Second)
+	timer := time.NewTimer(time.Duration(config.Duration) * time.Second)
 	firstProblem := true
 	cleanup := func() {
 		fmt.Printf("\r\nScore: %d\r\n", score)
-		saveScores(problems, times, "scores.txt")
+		saveScores(problems, times, "scores.txt", config)
 
 		term.Restore(int(os.Stdin.Fd()), oldState)
 		return
@@ -245,9 +331,9 @@ func gameLoop(inputChannel chan string, oldState *term.State) {
 	}()
 
 	for {
-		problem := genProblem(1, 12, []string{"+", "-", "*", "/"}, 1, 99)
+		problem := genProblem(config)
 		currentProblem = problem
-		problemAns := getProblemAnswer(problem.String())
+		problemAns := getProblemAnswer(problem)
 		problems = append(problems, problem)
 		if firstProblem {
 			fmt.Printf("%s: ", problem)
@@ -305,14 +391,21 @@ func printStats(filepath string) {
 }
 
 func main() {
-	handleClargs()
+	add := AdditionConfig{2, 100, 2, 100}
+	sub := SubtractionConfig{100, 2, 100, 2, true}
+	mult := MultiplicationConfig{2, 12, 2, 100}
+	div := DivisionConfig{1200, 2, 100, 2, true}
+	config := Config{add, sub, mult, div, true, true, 120, []string{"+", "-", "/", "*"}}
+
+	handleClargs(&config)
+
 	switch mode {
 	case StatsMode:
 		printStats("scores.txt")
 		return
 	case ConfigMode: //TODO: implement config mode
 	case GameMode:
-	default:
+		fmt.Printf("Game mode!\r\n")
 		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 		if err != nil {
 			panic(err)
@@ -329,7 +422,7 @@ func main() {
 		inputChannel := make(chan string)
 		go readInput(buf, inputChannel)
 
-		gameLoop(inputChannel, oldState)
+		gameLoop(config, inputChannel, oldState)
 	}
 
 }
