@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -436,6 +437,24 @@ func getCleanInput(reader *bufio.Reader) string {
 	return strings.Trim(line, "\r\n\t ")
 }
 
+func bracketCurrentOption(cond bool) string {
+	if cond {
+		return " [y]/n: "
+	} else {
+		return " y/[n]"
+	}
+}
+
+func setByInput(input string, option *bool) {
+	input = strings.ToLower(input)
+	if input == "y" || input == "yes" {
+		*option = true
+	}
+	if input == "n" || input == "no" {
+		*option = false
+	}
+}
+
 func setupConfig() {
 	var config Config
 	err := os.MkdirAll("configs", 0755)
@@ -468,13 +487,40 @@ func setupConfig() {
 	input := getCleanInput(reader)
 	if input == "y" {
 		fmt.Printf("\r\nEnter a new name for this config, or leave blank for unchanged (%s): ", config.Name)
-		fmt.Printf("\r\nShould subtraction problems be addition problems in reverse? [y]/n: ")
-		fmt.Printf("\r\nShould division problems always divide evenly? [y]/n: ")
+		input = getCleanInput(reader)
+		config.Name = input
+		fmt.Printf("\r\nShould subtraction problems be addition problems in reverse?%s", bracketCurrentOption(config.OverrideSubtractionConfig))
+		setByInput(getCleanInput(reader), &config.OverrideSubtractionConfig)
+		fmt.Printf("\r\nShould divsion problems be multiplication problems in reverse?%s", bracketCurrentOption(config.OverrideDivisionConfig))
+		setByInput(getCleanInput(reader), &config.OverrideDivisionConfig)
 		fmt.Printf("\r\nEnter the desired game duration in seconds, or leave blank for unchanged (%d): ", config.Duration)
-		fmt.Printf("\r\nEnable addition? [y]/n: ")
-		fmt.Printf("\r\nEnable subtraction? [y]/n: ")
-		fmt.Printf("\r\nEnable multiplication? [y]/n: ")
-		fmt.Printf("\r\nEnable division? [y]/n: ")
+		input = getCleanInput(reader)
+		num, err := strconv.Atoi(input)
+		if err != nil && len(input) > 0 {
+			config.Duration = num
+		}
+		var ops []string
+		fmt.Printf("\r\nEnable addition?%s", bracketCurrentOption(slices.Contains(config.LegalOperations, "+")))
+		input = getCleanInput(reader)
+		if input == "y" {
+			ops = append(ops, "+")
+		}
+		fmt.Printf("\r\nEnable subtraction?%s", bracketCurrentOption(slices.Contains(config.LegalOperations, "-")))
+		input = getCleanInput(reader)
+		if input == "y" {
+			ops = append(ops, "-")
+		}
+		fmt.Printf("\r\nEnable multiplication?%s", bracketCurrentOption(slices.Contains(config.LegalOperations, "*")))
+		input = getCleanInput(reader)
+		if input == "y" {
+			ops = append(ops, "*")
+		}
+		fmt.Printf("\r\nEnable division?%s", bracketCurrentOption(slices.Contains(config.LegalOperations, "/")))
+		input = getCleanInput(reader)
+		if input == "y" {
+			ops = append(ops, "/")
+		}
+		config.LegalOperations = ops
 	}
 	fmt.Printf("\r\nModify addition settings? y/[n]: ")
 	if getCleanInput(reader) == "y" {
