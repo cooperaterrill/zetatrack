@@ -455,6 +455,120 @@ func setByInput(input string, option *bool) {
 	}
 }
 
+func setupAdditionConfig(config *AdditionConfig, reader *bufio.Reader) {
+	fmt.Printf("\r\nSmallest left number [%d]: ", config.MinLeft)
+	line := getCleanInput(reader)
+	num, err := strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MinLeft = num
+	}
+	fmt.Printf("\r\nLargest left number [%d]: ", config.MaxLeft)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MaxLeft = num
+	}
+	fmt.Printf("\r\nSmallest right number [%d]: ", config.MinRight)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MinRight = num
+	}
+	fmt.Printf("\r\nLargest right number [%d]: ", config.MaxRight)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MaxRight = num
+	}
+}
+
+func setupSubtractionConfig(config *SubtractionConfig, reader *bufio.Reader) {
+	fmt.Printf("\r\nSmallest left number [%d]: ", config.MinLeft)
+	line := getCleanInput(reader)
+	num, err := strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MinLeft = num
+	}
+	fmt.Printf("\r\nLargest left number [%d]: ", config.MaxLeft)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MaxLeft = num
+	}
+	fmt.Printf("\r\nSmallest right number [%d]: ", config.MinRight)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MinRight = num
+	}
+	fmt.Printf("\r\nLargest right number [%d]: ", config.MaxRight)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MaxRight = num
+	}
+
+	fmt.Printf("\r\nForce non-negative difference?%s", bracketCurrentOption(config.ForceNonnegativeDifference))
+	setByInput(getCleanInput(reader), &config.ForceNonnegativeDifference)
+}
+
+func setupMultiplicationConfig(config *MultiplicationConfig, reader *bufio.Reader) {
+	fmt.Printf("\r\nSmallest left number [%d]: ", config.MinLeft)
+	line := getCleanInput(reader)
+	num, err := strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MinLeft = num
+	}
+	fmt.Printf("\r\nLargest left number [%d]: ", config.MaxLeft)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MaxLeft = num
+	}
+	fmt.Printf("\r\nSmallest right number [%d]: ", config.MinRight)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MinRight = num
+	}
+	fmt.Printf("\r\nLargest right number [%d]: ", config.MaxRight)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MaxRight = num
+	}
+}
+
+func setupDivisionConfig(config *DivisionConfig, reader *bufio.Reader) {
+	fmt.Printf("\r\nSmallest left number [%d]: ", config.MinLeft)
+	line := getCleanInput(reader)
+	num, err := strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MinLeft = num
+	}
+	fmt.Printf("\r\nLargest left number [%d]: ", config.MaxLeft)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		fmt.Printf("making change")
+		config.MaxLeft = num
+	}
+	fmt.Printf("\r\nSmallest right number [%d]: ", config.MinRight)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MinRight = num
+	}
+	fmt.Printf("\r\nLargest right number [%d]: ", config.MaxRight)
+	line = getCleanInput(reader)
+	num, err = strconv.Atoi(line)
+	if err == nil && len(line) > 0 {
+		config.MaxRight = num
+	}
+
+	fmt.Printf("\r\nForce numbers to be evenly divisible?%s", bracketCurrentOption(config.ForceCleanDivision))
+	setByInput(getCleanInput(reader), &config.ForceCleanDivision)
+}
 func setupConfig() {
 	var config Config
 	err := os.MkdirAll("configs", 0755)
@@ -466,8 +580,12 @@ func setupConfig() {
 	configName := getCleanInput(reader)
 	if len(configName) == 0 {
 		fmt.Printf("\r\nModifying default config.")
-		configName = "default"
-		config.Load("configs/default.txt")
+		config.Name = "default"
+		if fileExists("configs/default.txt") {
+			config.Load("configs/default.txt")
+		} else {
+			config = GetZetamacConfig()
+		}
 	} else if fileExists("configs/" + configName + ".txt") {
 		fmt.Printf("\r\nModifying existing config.")
 		config.Load("configs/" + configName + ".txt")
@@ -486,14 +604,16 @@ func setupConfig() {
 	fmt.Printf("\r\nModify game meta-settings? y/[n]: ")
 	input := getCleanInput(reader)
 	if input == "y" {
-		fmt.Printf("\r\nEnter a new name for this config, or leave blank for unchanged (%s): ", config.Name)
+		fmt.Printf("\r\nEnter a new name for this config, or leave blank for unchanged [%s]: ", config.Name)
 		input = getCleanInput(reader)
-		config.Name = input
+		if len(input) != 0 {
+			config.Name = input
+		}
 		fmt.Printf("\r\nShould subtraction problems be addition problems in reverse?%s", bracketCurrentOption(config.OverrideSubtractionConfig))
 		setByInput(getCleanInput(reader), &config.OverrideSubtractionConfig)
 		fmt.Printf("\r\nShould divsion problems be multiplication problems in reverse?%s", bracketCurrentOption(config.OverrideDivisionConfig))
 		setByInput(getCleanInput(reader), &config.OverrideDivisionConfig)
-		fmt.Printf("\r\nEnter the desired game duration in seconds, or leave blank for unchanged (%d): ", config.Duration)
+		fmt.Printf("\r\nEnter the desired game duration in seconds, or leave blank for unchanged [%d]: ", config.Duration)
 		input = getCleanInput(reader)
 		num, err := strconv.Atoi(input)
 		if err != nil && len(input) > 0 {
@@ -524,19 +644,19 @@ func setupConfig() {
 	}
 	fmt.Printf("\r\nModify addition settings? y/[n]: ")
 	if getCleanInput(reader) == "y" {
-
+		setupAdditionConfig(&config.AdditionConfig, reader)
 	}
 	fmt.Printf("\r\nModify subtraction settings? y/[n]: ")
 	if getCleanInput(reader) == "y" {
-
+		setupSubtractionConfig(&config.SubtractionConfig, reader)
 	}
 	fmt.Printf("\r\nModify multiplication settings? y/[n]: ")
 	if getCleanInput(reader) == "y" {
-
+		setupMultiplicationConfig(&config.MultiplicationConfig, reader)
 	}
 	fmt.Printf("\r\nModify division settings? y/[n]: ")
 	if getCleanInput(reader) == "y" {
-
+		setupDivisionConfig(&config.DivisionConfig, reader)
 	}
 
 	config.Save("configs/" + config.Name + ".txt")
