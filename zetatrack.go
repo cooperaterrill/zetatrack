@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math"
 	"os"
 	"slices"
 	"strconv"
@@ -108,12 +110,20 @@ type AdditionConfig struct {
 	MaxRight int
 }
 
+func (config AdditionConfig) String() string {
+	return fmt.Sprintf("%d-%d\t%d-%d", config.MinLeft, config.MaxLeft, config.MinRight, config.MaxRight)
+}
+
 type SubtractionConfig struct {
 	MinLeft                    int
 	MaxLeft                    int
 	MinRight                   int
 	MaxRight                   int
 	ForceNonnegativeDifference bool
+}
+
+func (config SubtractionConfig) String() string {
+	return fmt.Sprintf("%d-%d\t%d-%d\t%t", config.MinLeft, config.MaxLeft, config.MinRight, config.MaxRight, config.ForceNonnegativeDifference)
 }
 
 type MultiplicationConfig struct {
@@ -123,12 +133,20 @@ type MultiplicationConfig struct {
 	MaxRight int
 }
 
+func (config MultiplicationConfig) String() string {
+	return fmt.Sprintf("%d-%d\t%d-%d", config.MinLeft, config.MaxLeft, config.MinRight, config.MaxRight)
+}
+
 type DivisionConfig struct {
 	MinLeft            int
 	MaxLeft            int
 	MinRight           int
 	MaxRight           int
 	ForceCleanDivision bool
+}
+
+func (config DivisionConfig) String() string {
+	return fmt.Sprintf("%d-%d\t%d-%d\t%t", config.MinLeft, config.MaxLeft, config.MinRight, config.MaxRight, config.ForceCleanDivision)
 }
 
 type Config struct {
@@ -143,15 +161,18 @@ type Config struct {
 	LegalOperations           []string
 }
 
-func (config Config) Load(filepath string) {
-	file, err := os.OpenFile(filepath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+func (config *Config) Load(filepath string) {
+	fmt.Printf("Loading config %s\r\n", filepath)
+	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		panic(err)
 	}
-	buffer := make([]byte, 10*1024)
-	file.Read(buffer)
-	json.Unmarshal(buffer, &config)
-	//return config
+	buffer := make([]byte, 100*1024)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+	json.Unmarshal(buffer[:n], config)
 }
 
 func (config Config) Save(filepath string) {
@@ -166,9 +187,13 @@ func (config Config) Save(filepath string) {
 	file.Write(res)
 }
 
+func (config Config) String() string {
+	return fmt.Sprintf("%s\r\n%s\r\n%s \r\n%s \r\n%s \r\n%t %t %d %s\r\n", config.Name, config.AdditionConfig.String(), config.SubtractionConfig.String(), config.MultiplicationConfig.String(), config.DivisionConfig.String(), config.OverrideSubtractionConfig, config.OverrideDivisionConfig, config.Duration, strings.Join(config.LegalOperations, " "))
+}
+
 func GetZetamacConfig() Config {
 	add := AdditionConfig{2, 100, 2, 100}
-	sub := SubtractionConfig{100, 2, 100, 2, true}
+	sub := SubtractionConfig{2, 100, 2, 100, true}
 	mult := MultiplicationConfig{2, 12, 2, 100}
 	div := DivisionConfig{2, 1200, 2, 100, true}
 	return Config{"default", add, sub, mult, div, true, true, 120, []string{"+", "-", "/", "*"}}
@@ -182,11 +207,24 @@ const QuitSignal = "quit"
 
 func handleClargs(config *Config) {
 	clargs := os.Args
-	if len(clargs) > 1 && clargs[1] == "-s" {
+	if len(clargs) <= 1 {
+		if fileExists("configs/default.txt") {
+			config.Load("configs/default.txt")
+		} else {
+			*config = GetZetamacConfig()
+		}
+		return
+	}
+	if clargs[1] == "-s" {
 		mode = StatsMode
+	} else if clargs[1] == "-c" {
+		mode = ConfigMode
 	} else {
+		//we are in game mode, so load relevant config
+		config.Load("configs/" + clargs[1] + ".txt")
 		mode = GameMode
 	}
+
 	for i := 1; i < len(os.Args)-1; i++ {
 		if clargs[i] == "-t" {
 			num, err := strconv.Atoi(clargs[i+1])
@@ -595,12 +633,6 @@ func setupConfig() {
 		config.Name = configName
 	}
 
-	//MEGA TODO: handle all these options!!!
-	//
-	// DOUBLE TODO: bracket around previously selected option!!
-	//
-	//
-	//
 	fmt.Printf("\r\nModify game meta-settings? y/[n]: ")
 	input := getCleanInput(reader)
 	if input == "y" {
@@ -616,7 +648,7 @@ func setupConfig() {
 		fmt.Printf("\r\nEnter the desired game duration in seconds, or leave blank for unchanged [%d]: ", config.Duration)
 		input = getCleanInput(reader)
 		num, err := strconv.Atoi(input)
-		if err != nil && len(input) > 0 {
+		if err == nil && len(input) > 0 {
 			config.Duration = num
 		}
 		var ops []string
@@ -662,11 +694,93 @@ func setupConfig() {
 	config.Save("configs/" + config.Name + ".txt")
 }
 
+func validateConfig(config *Config) {
+	fmt.Printf("%s", config.String())
+	valid := true
+
+	//game rules
+	//1) no non-positive duration
+	if config.Duration <= 0 {
+		fmt.Printf("CONFIG ERROR: NON-POSITIVE GAME DURATION\r\n")
+		valid = false
+	}
+
+	//addition rules
+	//1) no non-positive operands
+	//2) operands less than maxint/2
+	//3) maxes >= mins
+	if config.AdditionConfig.MinLeft < 0 || config.AdditionConfig.MinRight < 0 {
+		fmt.Printf("CONFIG ERROR: NON-POSITIVE ADDITION OPERANDS\r\n")
+		valid = false
+	}
+	if config.AdditionConfig.MaxLeft >= math.MaxInt/2 || config.AdditionConfig.MaxRight >= math.MaxInt/2 {
+		fmt.Printf("CONFIG ERROR: ADDITION OPERANDS GREATER THAN HALF OF MAX INTEGER VALUE\r\n")
+		valid = false
+	}
+	if config.AdditionConfig.MaxLeft < config.AdditionConfig.MinLeft || config.AdditionConfig.MaxRight < config.AdditionConfig.MinRight {
+		fmt.Printf("CONFIG ERROR: NO POSSIBLE ADDITION OPERANDS\r\n")
+		valid = false
+	}
+
+	//subtraction rules
+	//1) no non-positive operands
+	//2) if the option is set, leftmax > rightmin (so we can always generate difference of at least 0)
+	//3) maxes >= mins
+	if config.SubtractionConfig.MinLeft <= 0 || config.SubtractionConfig.MinRight <= 0 {
+		fmt.Printf("CONFIG ERROR: NON-POSITIVE SUBTRACTION OPERANDS\r\n")
+		valid = false
+	}
+	if config.SubtractionConfig.ForceNonnegativeDifference && config.SubtractionConfig.MaxLeft < config.SubtractionConfig.MinRight {
+		fmt.Printf("CONFIG ERROR: NO POSSIBLE NON-NEGATIVE DIFFERENCES\r\n")
+		valid = false
+	}
+	if config.SubtractionConfig.MaxLeft < config.SubtractionConfig.MinLeft || config.SubtractionConfig.MaxRight < config.SubtractionConfig.MinRight {
+		fmt.Printf("CONFIG ERROR: NO POSSIBLE SUBTRACTION OPERANDS\r\n")
+		valid = false
+	}
+
+	//multiplication rules
+	//1) no non-positive operands
+	//2) operands less than sqrt(maxint)
+	//3) maxes >= mins
+	if config.MultiplicationConfig.MinLeft <= 0 || config.MultiplicationConfig.MinRight <= 0 {
+		fmt.Printf("CONFIG ERROR: NON-POSITIVE MULTIPLICATION OPERANDS\r\n")
+		valid = false
+	}
+	if config.MultiplicationConfig.MaxLeft >= int(math.Sqrt(math.MaxInt)) || config.MultiplicationConfig.MaxRight >= int(math.Sqrt(math.MaxInt/2)) {
+		fmt.Printf("CONFIG ERROR: MULTIPLICATION OPERANDS GREATER THAN SQUARE ROOT OF MAX INTEGER VALUE\r\n")
+		valid = false
+	}
+	if config.MultiplicationConfig.MaxLeft < config.MultiplicationConfig.MinLeft || config.MultiplicationConfig.MaxRight < config.MultiplicationConfig.MinRight {
+		fmt.Printf("CONFIG ERROR: NO POSSIBLE MULTIPLICATION OPERANDS\r\n")
+		valid = false
+	}
+
+	//divison rules
+	//1) no non-positive operands
+	//2) leftmax >= rightmin (so we can always generate quotient of at least 1)
+	//3) maxes >= mins
+	if config.DivisionConfig.MinLeft <= 0 || config.DivisionConfig.MinRight <= 0 {
+		fmt.Printf("CONFIG ERROR: NON-POSITIVE DIVISION OPERANDS\r\n")
+		valid = false
+	}
+	if config.DivisionConfig.MaxLeft < config.DivisionConfig.MinRight {
+		fmt.Printf("CONFIG ERROR: NO POSSIBLE NON-ZERO QUOTIENTS\r\n")
+		valid = false
+	}
+	if config.DivisionConfig.MaxLeft < config.DivisionConfig.MinLeft || config.DivisionConfig.MaxRight < config.DivisionConfig.MinRight {
+		fmt.Printf("CONFIG ERROR: NO POSSIBLE DIVISION OPERANDS\r\n")
+		valid = false
+	}
+	if !valid {
+		os.Exit(1)
+	}
+}
+
 func main() {
 	config := GetZetamacConfig()
 	handleClargs(&config)
 
-	mode = ConfigMode
 	switch mode {
 	case StatsMode:
 		printStats("scores.txt")
@@ -675,6 +789,7 @@ func main() {
 		setupConfig()
 		return
 	case GameMode:
+		validateConfig(&config)
 		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 		if err != nil {
 			panic(err)
