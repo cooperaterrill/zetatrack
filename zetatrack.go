@@ -162,7 +162,7 @@ type Config struct {
 }
 
 func (config *Config) Load(filepath string) {
-	fmt.Printf("Loading config %s\r\n", filepath)
+	fmt.Printf("\r\nLoading config %s\r\n", filepath)
 	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		panic(err)
@@ -614,7 +614,7 @@ func setupConfig() {
 		panic(err)
 	}
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf("Give this config a name, or leave empty to override the default: ")
+	fmt.Printf("Enter config name, or leave empty to override the default: ")
 	configName := getCleanInput(reader)
 	if len(configName) == 0 {
 		fmt.Printf("\r\nModifying default config.")
