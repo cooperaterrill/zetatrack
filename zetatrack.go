@@ -62,7 +62,8 @@ func NewLog(problems []Problem, times []int64, gameLength int) Log {
 }
 
 func ParseLog(line string) Log {
-	parts := strings.Split(line, " ")
+	trimmedLine := strings.Trim(line, "\r\n\t ")
+	parts := strings.Split(trimmedLine, " ")
 
 	logTimeUnix, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
