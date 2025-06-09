@@ -33,3 +33,4 @@ go.work.sum
 
 scores.txt
 configs/
+!test/configs/
