@@ -32,5 +32,5 @@ go.work.sum
 # .vscode/
 
 scores.txt
-test/
 configs/
+!test/configs/
