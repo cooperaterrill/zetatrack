@@ -39,7 +39,7 @@ func TestParseLog(t *testing.T) {
 	wantLog := NewLog(problems, times, gameLength)
 
 	gotLog := ParseLog(wantLog.String())
-	if wantLog.LogTime.Sub(gotLog.LogTime).Abs().Milliseconds() < 5 {
+	if wantLog.LogTime.Sub(gotLog.LogTime).Abs().Milliseconds() < 100 {
 		t.Errorf("Failed parsing log time: %s and %s", wantLog.LogTime.String(), wantLog.LogTime.String())
 	}
 	if !reflect.DeepEqual(wantLog.Problems, gotLog.Problems) {
