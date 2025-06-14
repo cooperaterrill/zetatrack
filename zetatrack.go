@@ -16,6 +16,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/Knetic/govaluate"
+	"github.com/go-echarts/go-echarts/v2/components"
 	"golang.org/x/term"
 )
 
@@ -89,6 +90,61 @@ func ParseLog(line string) Log {
 	}
 
 	return Log{Problems: problems, Times: times, LogTime: logTime, GameLength: gameLength}
+}
+
+func (log Log) GetAverageTimePerProblem() int64 {
+	var avg int64
+	avg = 0
+	for i := 0; i < len(log.Times)-1; i++ {
+		avg += log.Times[i]
+	}
+	if len(log.Times) <= 1 {
+		return 0
+	}
+	return avg / int64(len(log.Times)-1)
+}
+
+func ParseLogFile(filepath string) []Log {
+	file, err := os.Open(filepath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	var logs []Log
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(strings.Trim(line, "\r\n\t ")) == 0 {
+			continue
+		}
+		logs = append(logs, ParseLog(line))
+	}
+	return logs
+}
+
+func GetScoreList(logs []Log) []int {
+	var scores []int
+	for i := 0; i < len(logs); i++ {
+		scores = append(scores, len(logs[i].Times)-1)
+	}
+	return scores
+}
+
+func GetLogtimeList(logs []Log) []time.Time {
+	var logTimes []time.Time
+	for i := 0; i < len(logs); i++ {
+		logTimes = append(logTimes, logs[i].LogTime)
+	}
+	return logTimes
+}
+
+func GetAverageTimePerProblemList(logs []Log) []int64 {
+	var avgs []int64
+	for i := 0; i < len(logs); i++ {
+		avgs = append(avgs, logs[i].GetAverageTimePerProblem())
+	}
+	return avgs
 }
 
 func (log Log) String() string {
@@ -779,6 +835,15 @@ func validateConfig(config *Config) {
 }
 
 func main() {
+	page := components.NewPage()
+	page.AddCharts(GraphScoreOverTime("scores.txt"), GraphTimePerProblemOverTime("scores.txt"))
+	f, err := os.Create("graph.html")
+	if err != nil {
+		panic(err)
+	}
+	page.Render(io.MultiWriter(f))
+	return
+
 	config := GetZetamacConfig()
 	handleClargs(&config)
 

@@ -7,4 +7,7 @@ require (
 	golang.org/x/term v0.32.0
 )
 
-require golang.org/x/sys v0.33.0 // indirect
+require (
+	github.com/go-echarts/go-echarts/v2 v2.6.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+)
