@@ -69,7 +69,7 @@ func GraphScoreOverTime(filepath string) *charts.Line {
 	line := charts.NewLine()
 	line.SetGlobalOptions(
 		charts.WithTitleOpts(opts.Title{
-			Title: "Time played",
+			Title: "Score vs. Time Played",
 		}),
 		charts.WithYAxisOpts(opts.YAxis{
 			Min:          0,
@@ -82,7 +82,7 @@ func GraphScoreOverTime(filepath string) *charts.Line {
 			Type:         "time",
 			Min:          "dataMin",
 			Max:          "dataMax",
-			Name:         "Run #",
+			Name:         "Time Played",
 			NameGap:      30,
 			NameLocation: "center",
 		}),
@@ -99,7 +99,7 @@ func GraphScoreOverTime(filepath string) *charts.Line {
 		if scores[i] == 0 {
 			continue
 		}
-		items = append(items, opts.LineData{Value: []interface{}{times[i], scores[i]}})
+		items = append(items, opts.LineData{Value: []interface{}{times[i].Format("2006-01-02"), scores[i]}})
 	}
 
 	line.AddSeries("Performance", items)
@@ -111,7 +111,7 @@ func GraphTimePerProblemOverTime(filepath string) *charts.Line {
 	line := charts.NewLine()
 	line.SetGlobalOptions(
 		charts.WithTitleOpts(opts.Title{
-			Title: "Time played",
+			Title: "Average Time Per Problem vs. Time Played",
 		}),
 		charts.WithYAxisOpts(opts.YAxis{
 			Min:          0,
@@ -124,7 +124,7 @@ func GraphTimePerProblemOverTime(filepath string) *charts.Line {
 			Type:         "time",
 			Min:          "dataMin",
 			Max:          "dataMax",
-			Name:         "Run #",
+			Name:         "Time Played",
 			NameGap:      30,
 			NameLocation: "center",
 		}),
@@ -141,7 +141,7 @@ func GraphTimePerProblemOverTime(filepath string) *charts.Line {
 		if avgs[i] == 0 {
 			continue
 		}
-		items = append(items, opts.LineData{Value: []interface{}{times[i], avgs[i]}})
+		items = append(items, opts.LineData{Value: []interface{}{times[i].Format("2006-01-02"), avgs[i]}})
 	}
 
 	line.AddSeries("Average time per problem", items)
